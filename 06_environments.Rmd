@@ -1,0 +1,175 @@
+---
+title: "Ch 6 Environments"
+author: "Edwin Thoen"
+date: "8/1/2017"
+output: html_document
+---
+
+## 6.1 Basics
+
+Job of an environment is binding a set of names to a set of values. Each name points to an object stored elsewhere in memory. Because the objects don't live in the environment, multiple names can point to the same object:
+
+```{r}
+e <- new.env()
+e$a <- "jos"
+e$b <- e$a
+```
+
+However, the same value can also be saved multiple times, making up different objects. If an object has not name pointing to it, it will be deleted by the garbage collector. Every environment has a partent environment, which is used for lexical scoping. Ancestors are all the above environments upto the empty environment, which is the highest one. 
+
+Generally, env is similar to a list. With these differences:
+
+1) every name in env is unique
+2) names env are orderless
+3) env has a parent
+4) envs have reference semantics
+
+Environments have a frame = name-object bindings, and a parent. 
+
+Four special environmemts:
+
+1) `globalenv()`, here you work normally. Last package attached is its parent.
+2) `baseenv()`, environment of the base package, emptyenv is its parent.
+3) `emptyenv()`, ultimate ancestor, has no parents.
+4) `environment`, the current env.
+
+`search()` will list all parents of the global environments. The search path because objects in these parent envs can be found from the top-level interactive workspace. Contains all packages and objects that are attached. `Autoloads` is a special env for saving memory, only loads package objects when needed. Every time you load a new package it is inserted between the global env and the previous top env on the search path.
+
+`new.env()` creates a new env, `parent.env()` shows its parent, and `ls()` its bindings. Easiest way to modify bindings is to treat it like a list, with `$` assignment. `ls.str()` shows all the bindings in the env. Extracting can be dont by `$`, `[[` or `get()`. 
+
+Other than lists, we can't remove objects by assing `NULL` to them. This would create a new binding to a `NULL` object. We need
+
+```{r}
+rm("a", envir = e)
+ls.str(e)
+```
+
+With `exist()` you can determine if a binding exists. Like `get()` it will look into the parents.
+
+## Exercises
+
+1. -they have a parent -they don't have an order -names must be unique
+2. In the global env. `<-` make the binding in the env its get evaluated.  
+
+```{r}
+env <- environment()
+while(!identical(env, emptyenv())) {
+  print(env)
+  env <- parent.env(env)
+}
+```
+
+## 6.2 Recursing over environments
+
+Environments form a tree, so its convenient to recurse over them. The above `while` loop could also be written as:
+
+```{r}
+parent <- function(env = parent.frame()) {
+  if (identical(env, emptyenv())) {
+    stop("Reached the emptyenv")
+  } else {
+    print(env)
+    parent(parent.env(env))
+  }
+}
+pryr::where("mutate")
+```
+
+Note that we have to use `indentical` for envs `==` won't work. 
+
+## 6.2.1 Exercises
+```{r}
+where <- function(name, env = parent.frame()) {
+  if (identical(env, emptyenv())) {
+    # Base case
+    stop("empty env reached", call. = FALSE)
+    
+  } else {
+    
+    if (exists(name, envir = env, inherits = FALSE)) {
+      print(env)
+    }
+    
+    where(name, parent.env(env))
+    
+  }
+}
+```
+
+## 6.3 Function environments
+
+Most envs are created by functions. There are four types of envs associated with a function:
+
+* enclosing env: the env where the function is made. `environment(f)` returns the enclosing env.
+* binding env: functions don't have names, name of f is defined by a binding. Binding env is the environments are all the envs that have a binding. 
+
+The binding and the enclosing envs dont have to be the same. Enclosing never changes, but binding env can be moved to a new env. Because of distinction between the two, package namespaces that similare names can be bounded to different functions. Every package has two envs: its package env and its namespace env. Package env contains public accessible funs and is placed on the search path. Namespace env contains all funs. 
+
+* execution env: each time function is run a new env is started to host the execution. (a fresh start). Parent of execution env is the enclosing env of f. Function created into another function: enclosing env of the child is execution env of the parent. Then the execution env is no longer short lasting. 
+
+* calling env: functions are called in an environment, variable vals can be different in calling env than in enclosing env. `parent.frame()` returns the calling env. We can also look up the value of names in that env. R's regular scoping rules only use the enclosing parent, not the calling parent. Looking up variable in the calling env is called dynamic scoping.
+
+## 6.4 Binding names to values
+
+Assignment: binding a name to a value in the an env. We can also bind expressions (promises) and functions.
+
+#### Quotes
+`<<-` does not create a variable in the current env, but walks through parents and modifies existing var.
+
+```{r}
+x <- "jos"
+f <- function() x <<- "henk"
+f()
+x
+```
+
+```{r}
+f2 <- function() y <<- "henk"
+f2()
+y
+```
+
+If no existing var is found, a new var is created in the global env. 
+
+Two special types of bindings:
+
+* delayed: creates and stores a promise to evaluate the action when needed.
+* active: not bound to a constant, recomputed every time.
+
+## 6.4.1
+
+1) Does not create the variable in the globalenv if it is not found in the ancestors. This is safer to use, because you have to actively create the value first.
+
+2) Need NSE for this, revisit.
+```{r}
+`%<-%` <- function(name, value) {
+  
+  if (exists(name)) {
+    stop(name, " does exist alredy", call. = FALSE)
+  } else {
+    `<-`(name, value)
+  }
+}
+z %<-% 10
+x
+```
+
+3) Revisit with better understanding of NSE.
+
+## 6.5 Explicit environments
+
+When modifying an env, R does not make a copy, but overwrites. Just as we can use lists to pass data between funs, we can user envs. When doing this, the parent should be the empty env, otherwise we might inherit accidently. Envs are usefull for solving three common problems:
+
+Avoiding copies:
+
+We'll never make copies, makes it useful for lare objects. However since R 3.1.0, list copying is much more effective, making this less of a deal. 
+
+Package state:
+
+Allow to maintian the state of variables across functions calls. 
+
+Hashmaps: see `hash` package.
+
+
+
+
