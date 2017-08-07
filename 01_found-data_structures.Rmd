@@ -1,0 +1,86 @@
+---
+title: "Foundations: Data structures"
+output: html_notebook
+---
+
+Data structures can be organized by dimensionality and being heterogeneous or homogeneous. R has no scalar types, what seems as scalars are vectors of length 1. `str()` gives a descritput of a type.
+
+## Vectors
+
+The basis data structure in R: if homogeneous an atomic vector, if heterogeneous a list. Three common properties of all vectors (its metadata): the type, the length, and its attributes.
+
+#### Atomic Vectors
+
+Four common types, in hierarchy: double, integer, logical, character.
+
+```{r}
+x <- 1:4
+typeof(x)
+length(x)
+attributes(x)
+```
+
+Missing values are specified with `NA`, which are of class logical. NA values will be coerced to proper type. Can create specific NA values for the other three types, with "NA_{type}_"
+
+Atomic vectors are always 1d, `c()` just stitches the together. You can test for the four types with the "is.{type}" functions. Also available is the general `is.atomic`. The general function `is.numeric` return `TRUE` for both integers and doubles. 
+
+Because all elements in a vector must be of the same type, the vector will always coerced to the highest possible type. Coercion often happens automatically and silently.
+
+```{r}
+3:4 + c(TRUE, FALSE)
+```
+
+Use the explicit "as.{type}" functions if confusion is likely.
+
+#### Lists
+
+Can contain different types, including other lists (sometimes calles "recursive vectors" because of that). `c()` will combine several lists into one list, whereas `list()` will create a new list that contains the original lists. `unlist()` turns a list into an atomic vector.
+
+## Attributes
+
+All objects can have arbitrary additional attributes, store metadata about the object. `attr()` accesses individual attributers, `attributes()` stores them all in a list. By default, most attributes are lost when modifying an object, except for it names, dimensions, and class.
+
+#### Names
+Can be given at creation, by modiying an existing vector in place (`names()`), or by modifying a copy (`setNames()`). Names don't have to be complete, missing values will automatically be created when necessarry. 
+
+#### Factors
+Can only contain predifened values, are defined on top of integers by the class `factor` and the `levels` attributes. They cannot be combined, they will be coerced to regular integers then. When applying string methods to the factors, always explicitly cast to character first. 
+
+
+## Matrices and Arrays
+
+By adding a `dim` to an atomic vector, it behaves like an array. The matrix, with two dimensions, is the most commonly used of the arrays. The dimensions can be added at creation, or added later.
+
+```{r}
+matrix(1:6, 2, 3)
+a <- 1:6
+dim(a) <- c(2, 3)
+a
+```
+
+Because the extra dimensions `length` generalises to `nrow` and `ncol` and `names` generalises to `nrow` and `ncol`. Other useful functions on matrices are `cbind`, `rbind`, `as.matrix`, `is.matrix` and `t`.
+
+The behavior of column and row vectors can be quite different from atomic vectors. We can always test for them with `str` or `dim`.
+
+#### Data frames
+
+A list of equal length vectors. This makes it 2d, which gives it properties of both lists and matrices. `names` and `length` refer to the underlying list and are therefore equal to `colnames` and `ncol`. Also with 1d subsetting, the list subsetting is invoked, whereas 2d subsetting works likes matrices. To check for data.frames use class or `is.data.frame`. `cbind` and `rbind` also work on data.frames. 
+
+Since a df is a list, we can add more complex objects to its columns, as long as all columns are of the same length.
+
+```{r}
+a <- data.frame(a = 1:2)
+a$b <- list(1:2, c("jos", "henk"))
+class(a[2, 2])
+```
+
+However when trying to use a list as column within `data.frame` function, each item of the list will be put in its own column (using recycling). Applying `I()` will cause `data.frame` to see the list as one unit.
+
+```{r}
+data.frame(a = 1:2, b = list(1:2, c("jos", "henk")))
+data.frame(a = 1:2, b = I(list(1:2, c("jos", "henk"))))
+```
+
+
+
+

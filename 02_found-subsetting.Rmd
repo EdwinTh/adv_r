@@ -1,0 +1,11 @@
+---
+title: 'Foundations: Subsetting'
+output: html_document
+---
+
+Atomic vectors are subsetted by `[`, subsetting can be done by:
+* positive integers, return the elements indicated
+* negative integers, return all elements not indicated
+* logicals, return all elements indicated by TRUE
+* character, return all elements with the name in the selection
+* nothing, returns everything
