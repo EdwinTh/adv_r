@@ -1,0 +1,201 @@
+---
+title: "Ch 4 Functions"
+author: "Edwin Thoen"
+date: "8/1/2017"
+output: html_document
+---
+
+Functions have three parts: body is the code, formals are its argumnets and the environment is its place of creation. Functions can possess any number of attributes, `srcref` attribute points to the source code that also contains all the comments.
+
+"You can also add attributes to a function. For example, you can set the class() and add a custom print() method." This is a strange sentence with the rest of the paragraph. Reread later and PR if still unclear.
+
+Primitive functions are written directly in C and don't have body, formals and environmetn.
+
+## 4.1.2 Exercises
+
+#### 1
+```{r}
+is.function(mean)
+is.primitive(sum)
+```
+
+#### 2
+```{r}
+library(tidyverse)
+objs <- mget(ls("package:base"), inherits = TRUE)
+funs <- Filter(is.function, objs)
+nr_args <- funs %>% map_dbl(function(x) x %>% formals() %>% length())
+# a 
+nr_args %>% sort() %>% rev() %>% head()
+# b
+sum(nr_args == 0)
+# special that they work on the general environment, not specific data object
+# c
+# replace is.function by is.primitive
+```
+
+#### 3
+body, formals, environment
+
+#### 4
+primitives don't have an environment, this might be meant here.
+
+## Lexical scoping
+
+R looks up a variable based on how functions are nested when they were created, not how they were nested when they were called. Functions preserve the environments in which they were created. In the function environment variables can be present, even though they are not present in the environment where the function is called. 
+
+R handles variables with functions stored in them exactly the same as all other variables. One difference is when it is obvious we are referring to a function, other variables are ignored.
+
+```{r}
+some_var <- function(x) 42 + x
+func <- function() {
+  some_var <- 18
+  some_var(4)
+}
+func()
+```
+Here the call to `some_var` can't be a variable, so R will look for functions only and thus find it in the global env.
+
+Each time a function is called it creates a new environment for execution. It has no memory of what happened the last time it was called.
+
+Lexical scoping determines where to look for a variable, not when to do it. When values change outside the function, it will change the outcome of the function. `codetools::findGlobals(fun)` lists all the external dependencies of `fun`. You can never make a function without external dependencies, because lexical scoping is used to find everything, also base R functions. 
+
+## 4.2.5
+
+#### 1
+A vector of length 1, first c is concatenate, second is naming the first element c, third is referring to the variable c. This works because the first c is a function call. R will ignore the c variable in the global environment because it looks for a function. Then finds the function.
+
+#### 2
+Name masking: a function has an environment at creation, it determines how a function looks for variables.
+Functions vs variables: when there is clearly a function call, R will look for functions only, other variables are ignored.
+A fresh start: functions have no memory, a fresh execution environment at each call.
+Dynamic lookup: lexical scoping says where to look, not when. Variable search is done at function call, if variables change, results will be different.
+
+#### 3
+Outer function calls the inner function untill the third function. Innermost function is thus called first, so will be 202.
+
+## 4.3
+
+Every operation is a function call. Even control flow and subsetting operators. This means that everything can be overwritten, allows dplyr to translate R into SQL. It also allows for quick use in apply-ish things, it avoids having to write lambda functions.
+
+```{r}
+x <- list(1:8, 4:5, 4:9)
+sapply(x, "[", 2)
+```
+Note that the quouting works, becaus `sapply` uses `match.fun`, allowing you to give a name as well as the function itself.
+
+
+## 4.4
+
+Formal arguments are fixed, actual arguments change each time the function is called. The firs are a property of the function.
+
+When calling a function, arguments are first matched by exact matching, then by prefix matching and finally by position. Only use positional matching for the first two arguments. 
+
+We can use `do.call` to call a function with all the calling arguments in a list. 
+
+Because of lazy evaluation, default variables can be defined in terms of other arguments. Even in terms of variables created within the function. The `missing` funnction tells if a variable was supplied or not.
+
+Lazy evaluation, function arguments are only evaluated when they are used. We can use `force` to evaluate it earlier. Default arguments are evaluated inside the function, it as an unavaluated argument or a promise. A promise has two parts: the expression to be evaluated later (it can be accessed with substitute) and the environment it was created and where it should be evaluated.
+
+Laziness can be useful in `if` statements. We can do the following:
+```{r}
+x <- NULL
+if (!is.null(x) && x > 0) {
+  "wawa"
+}
+```
+The above doesn't break because the second part is never evaluated.
+
+`...` is a special argument, match any arguments not specified, can be easily passed to other functions. It is very flexible, because we don't have to prespecify any arguments. Putting it in a list makes it generally easier to work with. 
+
+```{r}
+f <- function(...) {
+  list(...)
+}
+f("jos", 1:9, dit_is_42 =  42)
+```
+
+Because it is implicit errors go unnaticed more easily. Misspelling of arguments won't raise an error. If possible, ask the user to provide a specific list with arguments.
+
+#### 4.4.6
+
+1) R will first match all the named arguments, and after that it will match by position. In the first case the named arguments are on the first and third position, so the unnamed argument goes to the second. It is not because it is also at the second position now, this would also have worked.
+```{r}
+sample(replace = TRUE, x = c(1:10, NA), 20)
+```
+In the second case, the unnamed argument goes to the first position. In the last case x and y are named, u and m are unambigious abbreviations of use and method and there values too. 
+
+2) It would return 3. With the evaluation of x a variable y is created in the evaluation environment of the function, ase well as a value for x itself from the argument of x. The argument y will never be evaluated because the variable y already exists at time of evaluation. Just like the following example.
+```{r}
+f <- function(x, y){
+  y <- 6
+  x + y
+}
+f(4, 5)
+```
+This is of course due to the lazy evaluation of y.
+
+3) It would return 100. x only gets evaluated when it is called, than it will start looking for z to which it points. Since z has been set to 100 in the meantime it will return this value. This also is an example of lazy evaluation of x.
+
+## 4.5 
+
+Infix function are in between their arguments, most functions are prefix. There are default infixes, such as `+` and `||`. Creating a custom infix should always be in between `%` signs. Infixes are more flexible, can contain any character. Infix are composed from left to right: this is why magrittr does the correct nesting, left to right becomes inside out.
+
+Replacement function modify their arguments in place. They are defined as `fun_name<-` and typically have two arguments, the data object and the value. They must return the modified object. R does not really modify in place, but makes a modified copy. Built-in replacement functions that are primitives do modify in place. Addtional arguments go in between the data object and the value.
+
+```{r}
+`modify<-` <- function(x, position, value) {
+  x[position] <- value
+  x
+}
+modify(x, 2) <- 10
+```
+
+#### 4.5.3
+
+```{r}
+# 1
+objs <- mget(ls("package:base"), inherits = TRUE)
+funs <- Filter(is.function, objs)
+fun_names <- names(funs) 
+replacements <- fun_names[fun_names %>% stringr::str_detect("<-")]
+funs[replacements] %>% map_lgl(is.primitive) %>% table
+```
+2) evrything between percent signs, that is not a percent sign itself.
+
+```{r}
+# 3
+`%xor%` <- function(a, b) {
+  stopifnot(is.logical(a) && is.logical(b))
+  sum(a, b) == 1
+}
+TRUE %xor% TRUE
+```
+
+```{r}
+#4 
+a <- 1:5
+b <- 3:7
+`%intersect%` <- function(a, b) a[a %in% b]
+`%union%` <- function(a, b) unique(c(a, b))
+`%setdiff%` <- function(a, b) a[!a %in% b]
+a %intersect% b
+a %union% b
+a %setdiff% b
+```
+
+```{r}
+`replace_rand<-` <- function(x, value) {
+  ind <- sample(1:length(x), 1)
+  x[ind] <- value
+  x
+}
+x <- 1:10
+replace_rand(x) <- 42
+x
+```
+
+## 4.6
+The last expresson evaluated in a function becomes the return value. pure functions are the easiest to understand, they always map the same input to the same output, they have no side effects. copy-on-modify semantics: modifying a function argument does not change the original value. Functions can return invisible outputs. By putting in between brackets it will be visible. <- operator returns invisibly, thats why (a <- 42) will return the input.
+
+`on.exit` allows to do other things other than returning a value when exiting the function. Often use to restore things in the general environment.
