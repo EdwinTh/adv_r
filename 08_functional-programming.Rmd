@@ -1,0 +1,44 @@
+---
+title: "Ch 8 Functional Programming"
+author: "Edwin Thoen"
+date: "8/1/2017"
+output: html_document
+---
+
+## 8.1 Motivation
+
+When copy-pasting code, we make mistakes easily. Rather we put repetive actions into functions. Duplicating also makes code harder to be maintained or expanded. DRY principle, "Don't Repeat Yourself": every piece of knowledge must have a single, unambiguous, authorative representation within a system. 
+
+`lapply()` is called a **functional**: it takes a function as an argument. Key of FP: write simple functions that can be understood in isolation and can be composed to do something more complex. A **closure** is a function that makes and return function. 
+
+## 8.2 Anonymous functions
+
+In R functions are objects in their own right, there is no special syntax around them. We can work with them without naming them, like in `lapply()`. Just like other functions they have formals, a body and a parent. They are convenient for lambda functions, but making them too complex soon makes them confusing. Start naming them then. Rule of thumb, fit on one line, no {}.
+
+#### 8.2.1
+
+```{r}
+match.fun("mean")
+```
+
+This doesn't make sense because functions have no special status in R. They can be just assigned to a variable name. The body can even be assigned to multiple names, it does not have to be uniquely attached to a name. 
+
+```{r, eval=FALSE}
+lapply(mtcars, function(x) sd(x) / mean(x))
+```
+
+## 8.3 Closures
+
+These are functions written by functions. They enclose the environment of their parent and can access all its variables. Gives you two levels of parameters. 
+
+```{r}
+pwr <- function(e) function(x) x ^ e
+square <- pwr(2)
+cube   <- pwr(3)
+square
+cube
+```
+
+Code of the above functions is exactly equal. The difference is in the parent environment, where the `e` parameter is defined. 
+
+
